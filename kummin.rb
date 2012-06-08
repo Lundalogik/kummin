@@ -41,18 +41,41 @@ module Kummin
 
     end
 
-    class Migrations
-        def all_steps
-            return self.methods.select do |m| 
+    class StepHandler
+        def step_number_of(step_symbol)
+            return step_symbol.to_s.gsub(/step_/,'').to_i
+        end
+        def all_step_symbols(obj)
+            obj.methods.select do |m| 
                 m.to_s.start_with?('step_') 
-            end.map do |m|
-                m.to_s.gsub(/step_/,'')
+            end
+        end
+        def all_steps(obj)
+            return all_step_symbols(obj).map do |m|
+                step_number_of(m)
             end
         end
     end
+    
+    $step_handler = StepHandler.new
+
+    class Migrations
+    end
 
     class StrictVersionMigrations < Migrations
+        def all_steps
+            return $step_handler.all_steps(self)
+        end
 
+        def up from, to
+            $step_handler.all_step_symbols(self).select do |s|
+                $step_handler.step_number_of(s) > from
+            end.sort do |a,b|
+                $step_handler.step_number_of(a)<=> $step_handler.step_number_of(b)
+            end.each do |s|
+                send s
+            end
+        end
     end
 
     class JumpVersionMigrations < Migrations
@@ -69,9 +92,6 @@ module Kummin
             @migrations = ObjectSpace.each_object(Class).select do |c|
                 c < Migrations && c != StrictVersionMigrations && c != JumpVersionMigrations
             end.to_a.sort! do |a,b| a.name <=> b.name end
-        end
-
-        def load_migrations
         end
 
         def migrate()
