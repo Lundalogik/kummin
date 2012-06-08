@@ -110,6 +110,10 @@ class MigrationsConfigTests < Test::Unit::TestCase
                      m.map do |m| m.class.name end) 
     end
 
+    def test_run
+        @c.migrate()
+    end
+
 end
 
 class ConfigWithVersions < Kummin::Configuration
