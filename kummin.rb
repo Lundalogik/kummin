@@ -33,7 +33,7 @@ module Kummin
             end
 
             if !@hash.key?(name)
-                return 0
+                return nil 
             else
                 return @hash[name]
             end
@@ -77,6 +77,10 @@ module Kummin
                 end
             end
         end
+
+        def first_version()
+            return 0
+        end
     end
 
     class Configuration
@@ -96,24 +100,26 @@ module Kummin
             else
                 @migrations = ObjectSpace.each_object(Class).select do |c|
                     c < Migrations && c != StrictVersionMigrations 
-                end.to_a
+                end.map do |c| c.new end.to_a
             end
-            @migrations.sort! do |a,b| a.name <=> b.name end
+            @migrations.sort! do |a,b| a.class.name <=> b.class.name end
         end
 
         def migrate()
             v = @v.version_for('kummin') 
-            if v == 0 
+            if v == nil 
                 @v.version_for('kummin', 1) 
                 @v.write
             end
             @migrations.each do |m|
-                v = @v.version_for(m.name)
-                instance = m.new
-                nxt = instance.all_steps.max
+                v = @v.version_for(m.class.name)
+                if v == nil
+                    v = m.first_version
+                end                
+                nxt = m.all_steps.max
                 if v<nxt
-                    instance.up(v, nxt) do |version|
-                        @v.version_for(m.name, version)
+                    m.up(v, nxt) do |version|
+                        @v.version_for(m.class.name, version)
                         @v.write
                     end
                 end

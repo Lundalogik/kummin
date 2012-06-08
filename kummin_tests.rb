@@ -21,14 +21,31 @@ class FolderMigrations < Kummin::StrictVersionMigrations
         @executed_steps.push(2)
     end
 end
+class ProgramVersion
+    include Comparable
+    attr_reader :version
+    def initialize(version)
+        @version = version
+    end
 
+    def to_s
+        return @version
+    end
+    
+    def <=>(otherv)
+        return @version <=> otherv.version
+    end
+end
 class InstallJavaMigrations < Kummin::Migrations
     attr_reader :executed_steps
     def initialize()
         @executed_steps = []
     end
     def all_steps()
-        return [1]
+        return ['1.5.1','1.6.1', '1.8'].map do |v| ProgramVersion.new(v) end
+    end
+    def first_version
+        return ProgramVersion.new('1.5.1')
     end
     # -> i yamlfilen står det InstallJava: version
     def up from, to
@@ -81,18 +98,10 @@ class FakeVersions
         end
 
         if !@state.key?(name)
-            return 0
+            return nil 
         else
             return @state[name]
         end
-    end
-end
-
-class ConfigWithVersions < Kummin::Configuration
-    attr_reader :versions
-    def initialize(state=nil)
-        @versions = FakeVersions.new(state)
-        super(:versions=>@versions,:migrations=>[FolderMigrations])
     end
 end
 
@@ -107,15 +116,23 @@ class MigrationsConfigTests < Test::Unit::TestCase
     end
 
     def test_can_report_version_0
-        assert_equal(0, @c.version())
+        assert_equal(nil, @c.version())
     end
 
     def test_can_read_migrations
         m = @c.migrations()
         assert_equal(['FolderMigrations','InstallJavaMigrations', 'With3StepsMigrations'], 
-                     m.map do |m| m.name end) 
+                     m.map do |m| m.class.name end) 
     end
 
+end
+
+class ConfigWithVersions < Kummin::Configuration
+    attr_reader :versions
+    def initialize(state,migrations)
+        @versions = FakeVersions.new(state)
+        super(:versions=>@versions,:migrations=>migrations)
+    end
 end
 
 class VersionInfoTests < Test::Unit::TestCase
@@ -124,7 +141,7 @@ class VersionInfoTests < Test::Unit::TestCase
     end
 
     def test_when_migrating_should_version_accordingly
-        @c = ConfigWithVersions.new()
+        @c = ConfigWithVersions.new({}, [FolderMigrations.new])
         @c.migrate()
         expected = [{"kummin"=>1},
 {"kummin"=>1, "FolderMigrations"=>1},
@@ -133,7 +150,7 @@ class VersionInfoTests < Test::Unit::TestCase
     end
 
     def test_when_existing_state_should_run_only_appropriate_versions
-        @c = ConfigWithVersions.new({"kummin"=>1,"FolderMigrations"=>1})
+        @c = ConfigWithVersions.new({"kummin"=>1,"FolderMigrations"=>1}, [FolderMigrations.new])
         @c.migrate()
         assert_equal([{"kummin"=>1, "FolderMigrations"=>2}], @c.versions.written_data)
     end
@@ -169,4 +186,15 @@ class MigrationsTests < Test::Unit::TestCase
     end    
 end
 
+class JumpToVersionMigrationsTests < Test::Unit::TestCase
+    def setup
+    end
 
+    def test_when_migrating_jump
+        j = InstallJavaMigrations.new
+        c = ConfigWithVersions.new({}, [j])
+        c.migrate()
+        assert_equal([ProgramVersion.new('1.8')],j.executed_steps)
+    end
+    
+end
