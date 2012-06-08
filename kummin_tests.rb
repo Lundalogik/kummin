@@ -28,10 +28,14 @@ class FolderMigrations < Kummin::StrictVersionMigrations
 end
 
 class InstallJavaMigrations < Kummin::JumpVersionMigrations
+    attr_reader :executed_steps
+    def initialize()
+        @executed_steps = []
+    end
     # -> i yamlfilen står det InstallJava: version
     def up from, to
+        @executed_steps.push(to)
     end
-
 end
 
 class With3StepsMigrations < Kummin::StrictVersionMigrations
@@ -106,6 +110,12 @@ class MigrationsTests < Test::Unit::TestCase
         w = With3StepsMigrations.new
         w.up(0,3)
         assert_equal([1,2,3], w.executed_steps)
+    end
+
+    def test_will_upgrade_in_only_one_step
+        j = InstallJavaMigrations.new
+        j.up(0,3)
+        assert_equal([3], j.executed_steps)
     end
 
 end
