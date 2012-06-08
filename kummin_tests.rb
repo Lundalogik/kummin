@@ -21,31 +21,16 @@ class FolderMigrations < Kummin::StrictVersionMigrations
         @executed_steps.push(2)
     end
 end
-class ProgramVersion
-    include Comparable
-    attr_reader :version
-    def initialize(version)
-        @version = version
-    end
-
-    def to_s
-        return @version
-    end
-    
-    def <=>(otherv)
-        return @version <=> otherv.version
-    end
-end
 class InstallJavaMigrations < Kummin::Migrations
     attr_reader :executed_steps
     def initialize()
         @executed_steps = []
     end
     def all_steps()
-        return ['1.5.1','1.6.1', '1.8'].map do |v| ProgramVersion.new(v) end
+        return ['1.5.1','1.6.1', '1.8'].map do |v| Kummin::ProgramVersion.new(v) end
     end
     def first_version
-        return ProgramVersion.new('1.5.1')
+        return Kummin::ProgramVersion.new('1.5.1')
     end
     # -> i yamlfilen står det InstallJava: version
     def up from, to
@@ -194,7 +179,17 @@ class JumpToVersionMigrationsTests < Test::Unit::TestCase
         j = InstallJavaMigrations.new
         c = ConfigWithVersions.new({}, [j])
         c.migrate()
-        assert_equal([ProgramVersion.new('1.8')],j.executed_steps)
+        assert_equal([Kummin::ProgramVersion.new('1.8')],j.executed_steps)
     end
     
+end
+
+class ProgramVersionTests < Test::Unit::TestCase
+    include Kummin
+    def test_version_1_8_should_be_greater_than_0_24
+        assert(ProgramVersion.new('1.8')>ProgramVersion.new('0.24'))
+    end
+    def test_version_1_12_should_be_greater_than_1_11
+        assert(ProgramVersion.new('1.12')>ProgramVersion.new('1.11'))
+    end
 end

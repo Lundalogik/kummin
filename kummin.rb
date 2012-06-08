@@ -3,6 +3,21 @@ require 'yaml'
 require 'fileutils'
 module Kummin
 
+    class ProgramVersion
+        include Comparable
+        attr_reader :version
+        def initialize(version)
+            @version = version
+        end
+
+        def to_s
+            return @version
+        end
+
+        def <=>(otherv)
+            return @version <=> otherv.version
+        end
+    end
     class VersionInfo
         attr_reader :filename
 
