@@ -27,18 +27,20 @@ module Kummin
             end
         end
 
-        def version_for(tp, val=nil)
+        def version_for(name, val=nil)
             if val!=nil
-                @hash[tp] = val
+                @hash[name] = val
             end
 
-            if !@hash.key?(tp)
+            if !@hash.key?(name)
                 return 0
             else
-                return @hash[tp]
+                return @hash[name]
             end
         end
-
+        def clear
+            FileUtils.rm_f(@filename)
+        end
     end
 
     def self.step_number_of(step_symbol)
@@ -63,31 +65,40 @@ module Kummin
             return Kummin.all_steps(self)
         end
 
-        def up from, to
+        def up from, to, &block #=nil
             Kummin.all_step_symbols(self).select do |s|
                 Kummin.step_number_of(s) > from
             end.sort do |a,b|
                 Kummin.step_number_of(a)<=> Kummin.step_number_of(b)
             end.each do |s|
                 send s
+                if block!=nil
+                    block.call( Kummin.step_number_of(s))
+                end
             end
         end
-    end
-
-    class JumpVersionMigrations < Migrations
-
     end
 
     class Configuration
         attr_reader :migrations
         def initialize(params)
-            @version_file = params[:version_file]
-            @v = VersionInfo.new(@version_file)
+            if params.key? :versions
+                @v = params[:versions]
+            else
+                version_file = params[:version_file]
+                @v = VersionInfo.new(version_file)
+            end
+
             @v.load()
 
-            @migrations = ObjectSpace.each_object(Class).select do |c|
-                c < Migrations && c != StrictVersionMigrations && c != JumpVersionMigrations
-            end.to_a.sort! do |a,b| a.name <=> b.name end
+            if params.key? :migrations
+                @migrations = params[:migrations]
+            else
+                @migrations = ObjectSpace.each_object(Class).select do |c|
+                    c < Migrations && c != StrictVersionMigrations 
+                end.to_a
+            end
+            @migrations.sort! do |a,b| a.name <=> b.name end
         end
 
         def migrate()
@@ -98,25 +109,29 @@ module Kummin
             end
             @migrations.each do |m|
                 v = @v.version_for(m.name)
-                nxt = v+1
-                m.new.up(v, nxt)
-                @v.version_for(m.name, nxt)
+                instance = m.new
+                nxt = instance.all_steps.max
+                if v<nxt
+                    instance.up(v, nxt) do |version|
+                        @v.version_for(m.name, version)
+                        @v.write
+                    end
+                end
             end
-            @v.write
         end
 
         def down()
 
         end
 
-        def version(tp=nil)
-            if !tp
-                tp = 'kummin'
+        def version(name=nil)
+            if !name
+                name = 'kummin'
             end
-            return @v.version_for(tp)
+            return @v.version_for(name)
         end
         def clear
-            FileUtils.rm_f(@version_file)
+            @v.clear 
         end
     end
 end
