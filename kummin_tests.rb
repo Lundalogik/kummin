@@ -13,6 +13,14 @@ class FolderMigrations < Kummin::StrictVersionMigrations
         $foldermigrations = to
         #mkdir('business_app')
     end
+
+    def step_1
+
+    end
+
+    def step_2
+
+    end
 end
 
 class InstallJavaMigrations < Kummin::JumpVersionMigrations
@@ -27,7 +35,6 @@ class Config < Kummin::Configuration
     def initialize
         super(:version_file=> './test_version_file.yml')
     end
-    
 end
 
 require 'fileutils'
@@ -54,6 +61,12 @@ class MigrationsTests < Test::Unit::TestCase
         @c.migrate()
         assert_equal(1, $foldermigrations) 
     end
+
+    def test_can_report_all_migrate_steps_in_migrations
+        steps = FolderMigrations.new.all_steps
+        assert_equal(['1','2'], steps)
+    end
+
 end
 
 

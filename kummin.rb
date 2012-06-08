@@ -42,7 +42,13 @@ module Kummin
     end
 
     class Migrations
-
+        def all_steps
+            return self.methods.select do |m| 
+                m.to_s.start_with?('step_') 
+            end.map do |m|
+                m.to_s.gsub(/step_/,'')
+            end
+        end
     end
 
     class StrictVersionMigrations < Migrations
@@ -80,7 +86,7 @@ module Kummin
                 m.new.up(v, nxt)
                 @v.version_for(m.name, nxt)
             end
-            
+            @v.write
         end
 
         def down()
